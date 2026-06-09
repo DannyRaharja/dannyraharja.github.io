@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Roda Gila — WGWO</title>
+<style>
+  /* ===== RESET & TEMA ===== */
+  :root{
+    --bg:#070912; --neon:#19e0ff; --neonB:#ff3ea5; --warn:#ffcf3a;
+    --ink:#e8f6ff; --muted:#7f93b0; --panel:#0d1426cc;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; background:var(--bg); color:var(--ink);
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; overflow:hidden;
+    -webkit-user-select:none; user-select:none; touch-action:none;}
+  #game{position:fixed; inset:0; display:block}
+
+  /* ===== OVERLAY UMUM ===== */
+  .layer{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; z-index:5; pointer-events:none;}
+  .layer.show{pointer-events:auto}
+  .hidden{display:none !important}
+
+  /* ===== MENU ===== */
+  #menu{background:radial-gradient(120% 120% at 50% 30%,#0b1226 0%,#05060d 70%);}
+  .card{background:var(--panel); border:1px solid #1d2c4d; border-radius:18px;
+    padding:24px 28px; width:min(580px,94vw); max-height:90vh; overflow-y:auto; backdrop-filter:blur(6px);
+    box-shadow:0 0 60px #19e0ff22, inset 0 0 40px #19e0ff0a;}
+  .card::-webkit-scrollbar{width:8px} .card::-webkit-scrollbar-thumb{background:#24365c; border-radius:4px}
+  .title{font-size:40px; font-weight:800; letter-spacing:2px; text-align:center;
+    background:linear-gradient(90deg,var(--neon),var(--neonB)); -webkit-background-clip:text;
+    background-clip:text; color:transparent; text-shadow:0 0 30px #19e0ff44;}
+  .sub{text-align:center; color:var(--muted); font-size:12px; letter-spacing:3px; margin-top:4px; margin-bottom:18px;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px;}
+  .field{display:flex; flex-direction:column; gap:4px}
+  .field label{font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase}
+  .field input,.field select{background:#070d1c; border:1px solid #24365c; color:var(--ink);
+    border-radius:8px; padding:8px 10px; font-family:inherit; font-size:14px; outline:none;}
+  .field input:focus,.field select:focus{border-color:var(--neon); box-shadow:0 0 0 2px #19e0ff33}
+  .row{display:flex; gap:12px; margin-top:18px}
+  button{flex:1; cursor:pointer; font-family:inherit; font-weight:700; letter-spacing:1px;
+    border:none; border-radius:10px; padding:13px; font-size:15px; color:#04111a;
+    background:linear-gradient(90deg,var(--neon),#5cf2ff); transition:transform .08s, filter .15s;}
+  button:hover{filter:brightness(1.1)} button:active{transform:translateY(1px)}
+  button.ghost{background:transparent; border:1px solid #2c4068; color:var(--ink)}
+  .hint{text-align:center; color:var(--muted); font-size:11px; margin-top:14px; line-height:1.8}
+  .key{display:inline-block; border:1px solid #2c4068; border-radius:5px; padding:1px 7px; color:var(--neon)}
+  .cyan{color:var(--neon)} .mag{color:var(--neonB)}
+  /* grup setting */
+  .group{margin-top:16px}
+  .gtitle{font-size:11px; letter-spacing:2px; color:var(--neon); text-transform:uppercase;
+    border-bottom:1px solid #1d2c4d; padding-bottom:5px; margin-bottom:9px; font-weight:700;}
+  .field.wide{grid-column:1 / -1}
+  .rngval{color:var(--neon); font-weight:700; float:right; text-transform:none; letter-spacing:0}
+  /* slider tema neon */
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; margin:8px 0 4px;
+    background:#1c2c4d; border-radius:4px; outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px;
+    border-radius:50%; background:var(--neon); cursor:pointer; box-shadow:0 0 10px #19e0ff88; border:none;}
+  input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--neon);
+    cursor:pointer; box-shadow:0 0 10px #19e0ff88; border:none;}
+
+  /* ===== HUD ===== */
+  #hud{position:fixed; top:0; left:0; right:0; z-index:4; display:flex; justify-content:space-between;
+    padding:18px 26px; pointer-events:none; font-weight:700; text-shadow:0 0 12px #000;}
+  .hud-box{background:#0b1226aa; border:1px solid #1d2c4d; border-radius:10px; padding:8px 16px; backdrop-filter:blur(4px)}
+  #hudScore{color:var(--neon); font-size:22px} #hudTime{color:var(--warn); font-size:22px}
+  .hud-lbl{font-size:10px; color:var(--muted); letter-spacing:2px; display:block}
+
+  /* ===== END OVERLAY ===== */
+  #end .card{text-align:center}
+  #endTitle{font-size:54px; font-weight:800; letter-spacing:3px}
+  #endTitle.win{color:var(--neon); text-shadow:0 0 40px #19e0ff66}
+  #endTitle.lose{color:var(--neonB); text-shadow:0 0 40px #ff3ea566}
+  #endStats{color:var(--muted); margin:10px 0 6px; font-size:14px; line-height:1.9}
+
+  /* ===== TOUCH CONTROLS ===== */
+  #touch{position:fixed; bottom:0; left:0; right:0; z-index:4; display:flex; justify-content:space-between;
+    padding:24px; pointer-events:none;}
+  .tbtn{pointer-events:auto; width:96px; height:96px; border-radius:50%; font-size:30px;
+    background:#0b1226aa; border:1px solid #2c4068; color:var(--neon); display:flex;
+    align-items:center; justify-content:center; backdrop-filter:blur(4px); text-align:center; line-height:1;}
+  .tbtn:active{background:#19e0ff22}
+  @media (hover:hover) and (pointer:fine){ #touch{display:none} }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ===== MENU ===== -->
+<div id="menu" class="layer show">
+  <div class="card">
+    <div class="title">RODA GILA</div>
+    <div class="sub">WGWO · WAWAN GAMING, WEDI OPO?</div>
+    <div class="group"><div class="gtitle">🎯 Permainan</div><div class="grid">
+      <div class="field"><label>Starting Score</label><input id="cfgScore" type="number" value="100" min="10" step="10"></div>
+      <div class="field"><label>Damage / Collision</label><input id="cfgDamage" type="number" value="10" min="1" step="1"></div>
+      <div class="field"><label>Game Duration (s)</label><input id="cfgDuration" type="number" value="60" min="10" step="5"></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">🎡 Arena &amp; Roda</div><div class="grid">
+      <div class="field"><label>Outer Radius (% layar)</label><input id="cfgOuter" type="number" value="47" min="15" max="49" step="1"></div>
+      <div class="field"><label>Inner Radius (% layar)</label><input id="cfgInner" type="number" value="31" min="5" max="45" step="1"></div>
+      <div class="field"><label>Rotation Speed (°/s)</label><input id="cfgRotSpeed" type="number" value="30" min="0" step="5"></div>
+      <div class="field"><label>Rotation Direction</label><select id="cfgDir"><option value="1">Clockwise (CW)</option><option value="-1">Counter‑CW (CCW)</option></select></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">🚧 Rintangan</div><div class="grid">
+      <div class="field"><label>Obstacle Count</label><input id="cfgObstacles" type="number" value="18" min="1" step="1"></div>
+      <div class="field"><label>Obstacle Length (% ring)</label><input id="cfgObsWidth" type="number" value="18" min="5" max="100" step="1"></div>
+      <div class="field"><label>Obstacle Thickness (px)</label><input id="cfgObsThick" type="number" value="8" min="1" max="30" step="1"></div>
+      <div class="field"><label>Obstacle Position</label><select id="cfgObsPos"><option value="default">Default (pola spec)</option><option value="mixed">Campur acak (Mixed)</option><option value="outer">Tepi Luar</option><option value="mid">Tengah</option><option value="inner">Tepi Dalam</option></select></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">🚗 Mobil</div><div class="grid">
+      <div class="field"><label>Car Size (%)</label><input id="cfgCarSize" type="number" value="100" min="30" max="250" step="10"></div>
+      <div class="field"><label>Car Radial Speed (px/s)</label><input id="cfgCarSpeed" type="number" value="240" min="40" step="10"></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">🔊 Audio</div><div class="grid">
+      <div class="field"><label>Music Volume <span id="cfgMusicVal" class="rngval">80%</span></label><input id="cfgMusic" type="range" min="0" max="100" value="80"></div>
+      <div class="field"><label>SFX Volume <span id="cfgSfxVal" class="rngval">90%</span></label><input id="cfgSfx" type="range" min="0" max="100" value="90"></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">🎮 Input &amp; Lag</div><div class="grid">
+      <div class="field"><label>Input Delay</label><select id="cfgInputDelay"><option value="0">Off</option><option value="1">On</option></select></div>
+      <div class="field"><label>Input Delay (ms)</label><input id="cfgInputDelayMs" type="number" value="150" min="0" max="2000" step="10"></div>
+      <div class="field wide"><label>Jumpy — lag acak (butuh Input Delay On)</label><select id="cfgJumpy"><option value="0">Off</option><option value="1">On</option></select></div>
+    </div></div>
+
+    <div class="group"><div class="gtitle">⚙️ Sistem</div><div class="grid">
+      <div class="field"><label>Theme</label><select id="cfgTheme"><option value="classic">Klasik (putih)</option><option value="neon">Neon (gelap)</option></select></div>
+      <div class="field"><label>Refresh Rate (FPS)</label><input id="cfgFps" type="number" value="30" min="5" step="5"></div>
+      <div class="field wide"><label>Random Seed (kosong = acak)</label><input id="cfgSeed" type="text" placeholder="cth: 12345"></div>
+    </div></div>
+
+    <div class="row">
+      <button id="btnStart">START ▶</button>
+      <button id="btnDefault" class="ghost">DEFAULT ↺</button>
+    </div>
+    <div class="hint">
+      Mobil <span class="cyan">KANAN</span> (jam 3) &amp; <span class="mag">KIRI</span> (jam 9) bergerak <b>masuk/keluar berlawanan</b>.<br>
+      <span class="key">←</span>/<span class="key">A</span> : kiri↗luar · kanan↘dalam &nbsp;&nbsp; <span class="key">→</span>/<span class="key">D</span> : kiri↘dalam · kanan↗luar<br>
+      Geser radius mobil agar tidak tertabrak garis yang menyapu. Bertahan sampai waktu habis.<br>
+      <span class="key">ESC</span> : kembali ke menu kapan saja.
+    </div>
+  </div>
+</div>
+
+<!-- ===== HUD ===== -->
+<div id="hud" class="hidden">
+  <div class="hud-box"><span class="hud-lbl">SCORE</span><span id="hudScore">100</span></div>
+  <div id="hudLag" class="hud-box hidden" style="align-self:center; color:#ffcf3a; font-size:13px; font-weight:700"></div>
+  <div class="hud-box" style="text-align:right"><span class="hud-lbl">TIME</span><span id="hudTime">60</span></div>
+</div>
+
+<!-- ===== TOUCH ===== -->
+<div id="touch" class="hidden">
+  <div class="tbtn" id="touchL">◄<br><small style="font-size:10px">L↗ R↘</small></div>
+  <div class="tbtn" id="touchR">►<br><small style="font-size:10px">L↘ R↗</small></div>
+</div>
+
+<!-- ===== END ===== -->
+<div id="end" class="layer hidden">
+  <div class="card">
+    <div id="endTitle">WIN</div>
+    <div id="endStats"></div>
+    <div class="row">
+      <button id="btnRestart">RESTART ↻</button>
+      <button id="btnMenu" class="ghost">MENU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   RODA GILA — single-file arcade. Lihat docs/ARCHITECTURE.md & docs/GDD.md.
+   MEKANIK: dua mobil TETAP di jam 3 (kanan) & jam 9 (kiri). Pemain menggeser
+   RADIUS keduanya secara BERLAWANAN. Rintangan = 30% lebar ring, ikut berputar.
+   ========================================================================= */
+
+/* ==== 0. UTIL ==== */
+const TAU = Math.PI * 2;
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+const D2R   = d => d*Math.PI/180;
+function normAngle(a){ a%=TAU; return a<0?a+TAU:a; }
+function angularDist(a,b){ let d=Math.abs(normAngle(a)-normAngle(b)); return d>Math.PI?TAU-d:d; } // 0..PI
+function rangesOverlap(a0,a1,b0,b1){ return a0<=b1 && b0<=a1; }
+
+/* ==== 1. RNG (mulberry32, seeded & reproducible) ==== */
+function mulberry32(seed){
+  let t = seed>>>0;
+  return function(){
+    t += 0x6D2B79F5;
+    let x = t;
+    x = Math.imul(x ^ (x>>>15), x | 1);
+    x ^= x + Math.imul(x ^ (x>>>7), x | 61);
+    return ((x ^ (x>>>14)) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(str){
+  if(str==="" || str==null) return (Date.now() ^ (performance.now()*1000|0))>>>0;
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+
+/* ==== 2. CONFIG ==== */
+// default dipakai juga saat boot (sebelum form dibaca) agar resize() bekerja
+const cfg = {
+  startScore:100, damage:10, duration:60, rotSpeed:D2R(30), dir:1,
+  obstacleCount:18, obsWidthPct:18, obsThick:8, obsPos:'mid', outerPct:47, innerPct:31,
+  carSpeed:240, carScalePct:100, fpsCap:30, theme:'classic', seedStr:'', seed:0,
+  musicVol:0.8, sfxVol:0.9,
+  inputDelayOn:false, inputDelayMs:150, jumpyOn:false,
+};
+function readConfig(){
+  cfg.startScore   = Math.max(10, +el('cfgScore').value || 100);
+  cfg.damage       = Math.max(1,  +el('cfgDamage').value || 10);
+  cfg.duration     = Math.max(5,  +el('cfgDuration').value || 60);
+  cfg.rotSpeed     = D2R(Math.max(0, +el('cfgRotSpeed').value || 30));   // rad/s
+  cfg.dir          = (+el('cfgDir').value === -1) ? -1 : 1;
+  cfg.obstacleCount= Math.max(1, Math.floor(+el('cfgObstacles').value || 18));
+  cfg.obsWidthPct  = clamp(+el('cfgObsWidth').value || 25, 5, 100);      // panjang radial (% lebar ring)
+  cfg.obsThick     = clamp(+el('cfgObsThick').value || 5, 1, 30);        // ketebalan garis (px)
+  cfg.obsPos       = el('cfgObsPos').value || 'mixed';                   // mixed/outer/mid/inner
+  cfg.outerPct     = clamp(+el('cfgOuter').value || 45, 15, 49);         // % min(layar)
+  // inner harus lebih kecil dari outer dengan margin agar ring punya lebar
+  cfg.innerPct     = clamp(+el('cfgInner').value || 28, 5, cfg.outerPct-5);
+  cfg.carSpeed     = Math.max(40, +el('cfgCarSpeed').value || 240);      // px/s (radial)
+  cfg.carScalePct  = clamp(+el('cfgCarSize').value || 60, 30, 250);      // ukuran mobil (%)
+  cfg.fpsCap       = Math.max(5, Math.floor(+el('cfgFps').value || 30)); // refresh rate (FPS)
+  cfg.theme        = el('cfgTheme').value || 'classic';                  // klasik / neon
+  cfg.seedStr      = el('cfgSeed').value.trim();
+  cfg.seed         = hashSeed(cfg.seedStr);
+  cfg.musicVol     = clamp((+el('cfgMusic').value||0)/100, 0, 1);        // volume 0..1
+  cfg.sfxVol       = clamp((+el('cfgSfx').value||0)/100, 0, 1);
+  cfg.inputDelayOn = (+el('cfgInputDelay').value)!==0;
+  cfg.inputDelayMs = clamp(+el('cfgInputDelayMs').value || 150, 0, 2000);
+  cfg.jumpyOn      = (+el('cfgJumpy').value)!==0;
+}
+
+/* ==== 3. STATE ==== */
+const canvas = el('game'), ctx = canvas.getContext('2d');
+const C = {x:0,y:0};                 // center layar (TETAP)
+let R = { outer:0, inner:0, mid:0, width:0 };
+const ANG_RIGHT = 0;                 // jam 3 (+x)
+const ANG_LEFT  = Math.PI;           // jam 9 (-x)
+const REF_OUTER = 590;                          // radius luar acuan spec → skala s = R.outer/590
+let carRadHalf = 7, carTanHalf = 17;            // dihitung di resize() dari spec (14×34) × skala
+// ===== TEMA (mengubah warna render game; menu/HUD tetap) =====
+const THEMES={
+  classic:{ glow:false, bg0:'#ffffff', bg1:'#eef1f5', ringFill:'#ffffff', ringStroke:'#000000',
+            obstacle:'#000000', carR:'#FF6A00', carL:'#FF6A00', carGlass:null, carLight:null,
+            lane:'#0000001a', particle:'#FF6A00', countdown:'#000000', cdLabel:'#555', dot:'#000000' },
+  neon:{    glow:true,  bg0:'#0b1226', bg1:'#04060d', ringFill:'#0a1530', ringStroke:'#19e0ff',
+            obstacle:null, carR:'#19e0ff', carL:'#ff3ea5', carGlass:'#04111a', carLight:'#ffffffcc',
+            lane:'#ffffff14', particle:'#ffcf3a', countdown:'#19e0ff', cdLabel:'#7f93b0', dot:'#0a1530' }
+};
+let TH=THEMES.classic;
+function applyTheme(){ TH=THEMES[cfg.theme]||THEMES.classic; }
+const game = {
+  scene:'menu',
+  rotationAngle:0,
+  d:0,                               // kontrol radial: rRight=mid+d, rLeft=mid-d
+  dMax:0,
+  score:100, timeLeft:60, countdown:0,
+  obstacles:[], fx:[], shake:0,
+  input:{left:false,right:false},        // input EFEKTIF (bisa tertunda)
+  rawInput:{left:false,right:false},     // input mentah langsung dari tombol
+  collisions:0,
+};
+let inputQueue=[];                        // {t,left,right} snapshot untuk simulasi delay konstan
+// Fitur Jumpy = lag spike ACAK (hanya saat Input Delay On). Baseline mulus.
+const jumpy={ frozen:false, nextT:0, target:0, taps:[], freezeStart:0 };
+const FREEZE_TIMEOUT=1500;                // ms maksimum satu spike bila tap kurang dari target
+
+/* ==== 4. SETUP ==== */
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  canvas.width  = innerWidth*dpr; canvas.height = innerHeight*dpr;
+  canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  C.x = innerWidth/2; C.y = innerHeight/2;
+  const base = Math.min(innerWidth, innerHeight);
+  R.outer = base*cfg.outerPct/100; R.inner = base*cfg.innerPct/100;
+  R.mid = (R.outer+R.inner)/2; R.width = R.outer-R.inner;
+  R.s = R.outer/REF_OUTER;                               // skala spec→game (dipakai render)
+  const csc=(cfg.carScalePct||100)/100;
+  carRadHalf = 7*R.s*csc;                                // mobil 14px lebar (radial) → half 7
+  carTanHalf = 17*R.s*csc;                               // mobil 34px tinggi (tangensial) → half 17
+  game.dMax = Math.max(0, R.width/2 - carRadHalf);
+  game.d = clamp(game.d, -game.dMax, game.dMax);
+}
+window.addEventListener('resize', resize);
+
+// Pola posisi spec untuk default level (1=luar, 2=tengah, 3=dalam), mulai 0° (mobil kanan).
+const DEFAULT_PATTERN=[1,2,1,3,2,3,1,3,3,1,1,2,3,3,2,2,3,2];
+// Default level = pola tetap di atas, deterministik tanpa RNG. Beda dari default → pakai RNG.
+function isDefaultLevel(){
+  return cfg.obstacleCount===18 && cfg.obsPos==='default' && cfg.obsWidthPct===18
+      && cfg.obsThick===8 && cfg.seedStr==='';
+}
+function generateObstacles(){
+  const count = cfg.obstacleCount;
+  const slot  = TAU/count;                       // EXACT 360/count (mulai 0°, tanpa jitter)
+  const L     = R.width*cfg.obsWidthPct/100;      // panjang radial halangan
+  const def   = isDefaultLevel();
+  const rng   = def ? null : mulberry32(cfg.seed);// default → tanpa RNG
+  const arr = [];
+  for(let i=0;i<count;i++){
+    const angle = i*slot;                         // No.01 @ 0°, No.02 @ 20°, ...
+    let type;
+    if(def) type = DEFAULT_PATTERN[i];            // pola spec (deterministik)
+    else if(cfg.obsPos==='outer') type=1;
+    else if(cfg.obsPos==='inner') type=3;
+    else if(cfg.obsPos==='mid') type=2;
+    else type = 1 + Math.floor(rng()*3);          // mixed / custom → RNG
+    let r0,r1;
+    if(type===1){ r1=R.outer;       r0=R.outer-L; }      // menempel luar, ke dalam
+    else if(type===3){ r0=R.inner;  r1=R.inner+L; }      // menempel dalam, keluar
+    else { r0=R.mid-L/2;            r1=R.mid+L/2; }       // tengah jalur
+    arr.push({ angle, type, r0, r1, hitR:false, hitL:false });
+  }
+  return arr;
+}
+
+function startGame(){
+  readConfig(); applyTheme(); resize();
+  musicVol=cfg.musicVol; sfxVol=cfg.sfxVol; initAudio(); sfx('ui');
+  game.rotationAngle = 0;
+  game.d = 0;
+  game.score = cfg.startScore;
+  game.timeLeft = cfg.duration;
+  game.obstacles = generateObstacles();
+  game.fx.length = 0; game.shake = 0; game.collisions = 0;
+  game.input.left = game.input.right = false;
+  game.rawInput.left = game.rawInput.right = false;
+  inputQueue.length = 0;
+  jumpy.frozen=false; jumpy.taps.length=0;
+  jumpy.nextT = performance.now() + 4000 + Math.random()*2000;   // spike pertama ~4-6 dtk
+  game.countdown = 3;                           // siap-siap 3 detik
+  game.scene = 'countdown';
+  updateBgm();                                  // BGM gameplay sudah mulai saat countdown
+  el('menu').classList.remove('show'); el('menu').classList.add('hidden');
+  el('end').classList.remove('show');  el('end').classList.add('hidden');
+  el('hud').classList.remove('hidden'); el('touch').classList.remove('hidden');
+  updateLagChip(); syncHud();
+}
+
+/* ==== 5. INPUT ==== */
+// Semua sumber input menyetel rawInput, lalu diolah processInput() (opsi delay & jumpy).
+function pushInput(now){
+  inputQueue.push({t:now, left:game.rawInput.left, right:game.rawInput.right});
+  if(inputQueue.length>240) inputQueue.shift();
+}
+function registerPress(now,side){                    // catat tap (arah) saat lag spike (Jumpy)
+  if(cfg.inputDelayOn && cfg.jumpyOn && jumpy.frozen) jumpy.taps.push(side==='left'?-1:1);
+}
+function setRaw(side,down,isPress){
+  game.rawInput[side]=down;
+  const now=performance.now();
+  pushInput(now);
+  if(down && isPress) registerPress(now,side);
+}
+function bindKey(e,down){
+  const k=e.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A'){ setRaw('left',down,!e.repeat); e.preventDefault(); }
+  else if(k==='ArrowRight'||k==='d'||k==='D'){ setRaw('right',down,!e.repeat); e.preventDefault(); }
+  else if(k==='Escape'){ if(down) goMenu(); e.preventDefault(); }
+}
+addEventListener('keydown',e=>bindKey(e,true));
+addEventListener('keyup',  e=>bindKey(e,false));
+function hold(id,side){
+  const b=el(id);
+  const on =e=>{ setRaw(side,true,true);   e.preventDefault(); };
+  const off=e=>{ setRaw(side,false,false); e.preventDefault(); };
+  b.addEventListener('touchstart',on,{passive:false}); b.addEventListener('mousedown',on);
+  b.addEventListener('touchend',off,{passive:false});  b.addEventListener('mouseup',off);
+  b.addEventListener('mouseleave',off); b.addEventListener('touchcancel',off,{passive:false});
+}
+hold('touchL','left'); hold('touchR','right');
+
+// Olah input mentah → game.input (efektif). Tanpa delay = langsung; dengan delay = snapshot (now-delay).
+function applyRaw(){ game.input.left=game.rawInput.left; game.input.right=game.rawInput.right; }
+function processInput(now){
+  if(!cfg.inputDelayOn){ applyRaw(); if(inputQueue.length) inputQueue.length=0; return; }
+  if(cfg.jumpyOn){                                    // baseline MULUS + lag spike acak
+    if(game.scene==='playing') updateJumpy(now);
+    else if(jumpy.frozen) releaseSpike(now);
+    if(jumpy.frozen){ game.input.left=false; game.input.right=false; }  // mobil membeku saat lag
+    else applyRaw();
+    if(inputQueue.length) inputQueue.length=0;
+    return;
+  }
+  const cutoff=now-cfg.inputDelayMs;                  // delay KONSTAN (Jumpy Off)
+  while(inputQueue.length && inputQueue[0].t<=cutoff){ const s=inputQueue.shift(); game.input.left=s.left; game.input.right=s.right; }
+}
+function updateJumpy(now){
+  if(jumpy.frozen){
+    if(jumpy.taps.length>=jumpy.target || now-jumpy.freezeStart>FREEZE_TIMEOUT) releaseSpike(now);
+    return;
+  }
+  if(now>=jumpy.nextT){                               // mulai lag spike acak
+    jumpy.frozen=true; jumpy.freezeStart=now;
+    jumpy.target=2+Math.floor(Math.random()*4);       // butuh 2..5 tap untuk mencairkan
+    jumpy.taps.length=0;
+    const c=el('hudLag'); c.textContent='⚡ LAG!'; c.style.color='#ff3ea5';
+  }
+}
+function releaseSpike(now){
+  let jump=0;                                         // LOMPAT acak: tiap tap = langkah acak ke arahnya
+  for(const dir of jumpy.taps) jump += dir*(0.15+Math.random()*0.35)*game.dMax;
+  game.d=clamp(game.d+jump, -game.dMax, game.dMax);
+  if(jumpy.taps.length){ game.shake=Math.min(16,game.shake+5);
+    spawnHit(ANG_RIGHT,R.mid+game.d,TH.particle); spawnHit(ANG_LEFT,R.mid-game.d,TH.particle); sfx('jump'); }
+  jumpy.frozen=false; jumpy.taps.length=0;
+  jumpy.nextT=now + 4000 + Math.random()*2000;        // spike berikutnya ~4–6 dtk
+  const c=el('hudLag'); c.textContent='⚡ JUMPY'; c.style.color='#ffcf3a';
+}
+
+/* ==== 6. UPDATE ==== */
+function update(dt){
+  processInput(performance.now());       // hitung input efektif (delay/jumpy)
+  const playing = game.scene==='playing';
+
+  // arena HANYA rotasi (center tetap) — aktif saat countdown & playing
+  game.rotationAngle += cfg.dir * cfg.rotSpeed * dt;
+
+  // kontrol radial berlawanan (aktif juga saat countdown → bisa pre-posisi)
+  let dir = (game.input.right?1:0) - (game.input.left?1:0);
+  game.d = clamp(game.d + dir*cfg.carSpeed*dt, -game.dMax, game.dMax);
+  const rR = R.mid + game.d;     // radius mobil kanan (jam 3)
+  const rL = R.mid - game.d;     // radius mobil kiri  (jam 9)
+
+  if(playing){
+    // collision per mobil (edge-detected)
+    const obsHalf = 4/R.mid;
+    let hits = 0;
+    for(const o of game.obstacles){
+      const oScreen = o.angle + game.rotationAngle;
+      const overR = angularDist(ANG_RIGHT,oScreen) < (carTanHalf/rR + obsHalf)
+                 && rangesOverlap(rR-carRadHalf, rR+carRadHalf, o.r0, o.r1);
+      if(overR){ if(!o.hitR){ o.hitR=true; hits++; spawnHit(ANG_RIGHT,rR,TH.carR); } } else o.hitR=false;
+      const overL = angularDist(ANG_LEFT,oScreen) < (carTanHalf/rL + obsHalf)
+                 && rangesOverlap(rL-carRadHalf, rL+carRadHalf, o.r0, o.r1);
+      if(overL){ if(!o.hitL){ o.hitL=true; hits++; spawnHit(ANG_LEFT,rL,TH.carL); } } else o.hitL=false;
+    }
+    if(hits>0){
+      game.score = Math.max(0, game.score - cfg.damage*hits);
+      game.collisions += hits;
+      game.shake = Math.min(14, game.shake + 5*hits);
+      sfx(hits>=2?'hit2':'hit');
+      syncHud();
+    }
+  }
+
+  // partikel
+  for(let i=game.fx.length-1;i>=0;i--){
+    const p=game.fx[i]; p.life-=dt; if(p.life<=0){ game.fx.splice(i,1); continue; }
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.92; p.vy*=0.92;
+  }
+  game.shake *= 0.86;
+
+  // countdown 3..2..1 sebelum mulai
+  if(game.scene==='countdown'){
+    game.countdown -= dt;
+    if(game.countdown<=0) game.scene='playing';
+    return;
+  }
+
+  // timer & kondisi akhir (hanya saat playing)
+  if(playing){
+    game.timeLeft -= dt;
+    if(game.score<=0){ endGame(false); return; }
+    if(game.timeLeft<=0){ game.timeLeft=0; endGame(true); return; }
+    syncHud();
+  }
+}
+
+function spawnHit(angle,radius,color){
+  const x=C.x+Math.cos(angle)*radius, y=C.y+Math.sin(angle)*radius;
+  for(let i=0;i<10;i++){
+    const a=Math.random()*TAU, s=60+Math.random()*160;
+    game.fx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.4+Math.random()*0.3,
+      color: Math.random()<0.5?TH.particle:color});
+  }
+}
+
+/* ==== 7. RENDER ==== */
+function render(){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  const bg=ctx.createRadialGradient(C.x,C.y,R.inner*0.3,C.x,C.y,Math.max(innerWidth,innerHeight)*0.7);
+  bg.addColorStop(0,TH.bg0); bg.addColorStop(1,TH.bg1);
+  ctx.fillStyle=bg; ctx.fillRect(0,0,innerWidth,innerHeight);
+  if(game.scene==='menu') return;
+
+  const sx=(Math.random()*2-1)*game.shake, sy=(Math.random()*2-1)*game.shake;
+  ctx.save(); ctx.translate(sx,sy);
+
+  // ----- ARENA: translate ke center TETAP, lalu HANYA rotate -----
+  ctx.save();
+  ctx.translate(C.x,C.y);
+  ctx.rotate(game.rotationAngle);
+  const stroke = 8*R.s;                            // lebar garis spec (8px) diskalakan
+  // ring fill
+  ctx.beginPath(); ctx.arc(0,0,R.outer,0,TAU); ctx.arc(0,0,R.inner,0,TAU,true);
+  ctx.fillStyle=TH.ringFill; ctx.fill('evenodd');
+  // boundary
+  ctx.lineWidth=stroke; ctx.shadowBlur=TH.glow?18:0;
+  ctx.strokeStyle=TH.ringStroke; ctx.shadowColor=TH.ringStroke;
+  ctx.beginPath(); ctx.arc(0,0,R.outer,0,TAU); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,R.inner,0,TAU); ctx.stroke();
+  ctx.shadowBlur=0;
+  // obstacles (bagian dari arena → ikut rotate)
+  ctx.lineCap='round'; ctx.lineWidth=cfg.obsThick*R.s;
+  for(const o of game.obstacles){
+    const c=Math.cos(o.angle), s=Math.sin(o.angle);
+    const col = TH.obstacle || (o.type===1?'#ff6b3a':(o.type===3?'#ffcf3a':'#ff3ea5'));
+    ctx.strokeStyle=col; ctx.shadowColor=col; ctx.shadowBlur=TH.glow?10:0;
+    ctx.beginPath(); ctx.moveTo(c*o.r0,s*o.r0); ctx.lineTo(c*o.r1,s*o.r1); ctx.stroke();
+  }
+  ctx.shadowBlur=0;
+  ctx.restore(); // selesai arena frame
+
+  // ----- TITIK TENGAH (spec: radius 19px diskalakan) -----
+  ctx.fillStyle=TH.dot; ctx.beginPath(); ctx.arc(C.x,C.y,19*R.s,0,TAU); ctx.fill();
+
+  // ----- LANE GUIDE (player frame, TIDAK ikut rotate) di jam 3 & jam 9 -----
+  ctx.strokeStyle=TH.lane; ctx.lineWidth=2;
+  for(const a of [ANG_RIGHT,ANG_LEFT]){ const c=Math.cos(a), s=Math.sin(a);
+    ctx.beginPath(); ctx.moveTo(C.x+c*R.inner,C.y+s*R.inner); ctx.lineTo(C.x+c*R.outer,C.y+s*R.outer); ctx.stroke(); }
+
+  // ----- MOBIL (player frame): kanan @ mid+d, kiri @ mid-d -----
+  drawCar(ANG_RIGHT, R.mid+game.d, TH.carR);
+  drawCar(ANG_LEFT,  R.mid-game.d, TH.carL);
+
+  // partikel
+  for(const p of game.fx){ ctx.globalAlpha=clamp(p.life*2,0,1); ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,TAU); ctx.fill(); }
+  ctx.globalAlpha=1;
+  ctx.restore(); // shake
+
+  if(game.scene==='countdown') drawCountdown();
+}
+
+function drawCountdown(){
+  const n=Math.ceil(game.countdown);
+  const frac=game.countdown-(n-1);                  // 1→0 dalam tiap detik
+  const scale=1+(1-frac)*0.6;                        // angka membesar lalu memudar
+  ctx.save();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=TH.cdLabel; ctx.globalAlpha=0.85;    // label "SIAP-SIAP"
+  ctx.font='600 20px ui-monospace, monospace';
+  ctx.fillText('SIAP-SIAP', C.x, C.y - R.outer*0.55);
+  ctx.globalAlpha=clamp(frac*1.5,0,1);               // angka countdown
+  ctx.fillStyle=TH.countdown; ctx.shadowColor=TH.countdown; ctx.shadowBlur=TH.glow?40:0;
+  ctx.font='800 '+Math.round(140*scale)+'px ui-monospace, monospace';
+  ctx.fillText(n>0?(''+n):'GO', C.x, C.y);
+  ctx.restore();
+}
+
+function drawCar(angle,radius,color){
+  const x=C.x+Math.cos(angle)*radius, y=C.y+Math.sin(angle)*radius;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(angle);   // local +x = arah keluar (radial)
+  if(TH.glow){ ctx.shadowColor=color; ctx.shadowBlur=16; }
+  ctx.fillStyle=color;
+  roundRect(-carRadHalf,-carTanHalf, carRadHalf*2, carTanHalf*2, Math.min(4,carRadHalf*0.4)); ctx.fill();
+  ctx.shadowBlur=0;
+  if(TH.carGlass){                                      // detail hanya untuk tema neon
+    ctx.fillStyle=TH.carGlass;
+    roundRect(-carRadHalf+4,-carTanHalf+3, carRadHalf, carTanHalf*2-6, 3); ctx.fill();
+    ctx.fillStyle=TH.carLight;
+    roundRect(carRadHalf-4,-carTanHalf+2, 3, carTanHalf*2-4, 1.5); ctx.fill();
+  }
+  ctx.restore();
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ==== 7b. AUDIO (WebAudio sintetik + opsional file di folder gameassets/) ==== */
+let AC=null, masterGain=null, musicGain=null, sfxGain=null;
+let musicVol=0.8, sfxVol=0.9;               // volume 0..1 (dari slider menu)
+let bgmMenuEl=null, bgmGameEl=null, bgmGenericEl=null;  // BGM file: bgm-menu.* / bgm-game.* / bgm.*
+const sfxFiles={};                          // SFX berbasis file (name -> HTMLAudioElement)
+let musicTimer=null, nextNoteTime=0, mStep=0, synthMusicActive=false, synthMuted=false;
+const SCALE=[0,3,5,7,10];                   // pentatonik minor → vibe tegang-arcade
+function mfreq(deg,oct){ const s=SCALE[((deg%SCALE.length)+SCALE.length)%SCALE.length]; return 220*Math.pow(2,(s+12*oct)/12); }
+
+function initAudio(){
+  if(!AC){
+    const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return;
+    AC=new Ctx();
+    masterGain=AC.createGain(); masterGain.gain.value=0.85; masterGain.connect(AC.destination);
+    musicGain=AC.createGain(); musicGain.connect(masterGain);
+    sfxGain=AC.createGain();   sfxGain.connect(masterGain);
+  }
+  if(AC.state==='suspended') AC.resume();
+  applyAudioGains();
+  startSynthMusic();                         // sintetik selalu siap (di-mute saat file BGM aktif)
+  updateBgm();
+}
+function applyAudioGains(){
+  if(AC){ if(musicGain) musicGain.gain.value=musicVol*0.72; if(sfxGain) sfxGain.gain.value=sfxVol*0.7; }
+  updateBgm();
+}
+// BGM file untuk scene saat ini (atau null → pakai sintetik). Menu & gameplay DIBEDAKAN.
+function currentBgmEl(){
+  const inGame = (game.scene==='playing'||game.scene==='countdown');
+  return inGame ? (bgmGameEl||bgmGenericEl) : (bgmMenuEl||bgmGenericEl);
+}
+function updateBgm(){
+  const desired = musicVol>0 ? currentBgmEl() : null;
+  [bgmMenuEl,bgmGameEl,bgmGenericEl].forEach(e=>{ if(e && e!==desired) e.pause(); });
+  if(desired){ desired.volume=Math.min(1,musicVol*1.6); desired.play().catch(()=>{}); synthMuted=true; } // file menangani scene ini
+  else { synthMuted=false; }                                                          // tak ada file → sintetik
+}
+
+// coba muat aset opsional dari folder gameassets/ (jika ada → dipakai; jika tidak → sintetik)
+function loadBgmVariant(name,getter,setter){
+  ['mp3','ogg','wav'].forEach(ext=>{
+    const b=new Audio('gameassets/'+name+'.'+ext); b.loop=true; b.preload='auto';
+    b.addEventListener('canplaythrough',()=>{ if(getter()) return; setter(b); updateBgm(); },{once:true});
+  });
+}
+function loadAssets(){
+  loadBgmVariant('bgm-menu', ()=>bgmMenuEl,    b=>bgmMenuEl=b);     // BGM menu (opsional)
+  loadBgmVariant('bgm-game', ()=>bgmGameEl,    b=>bgmGameEl=b);     // BGM gameplay (opsional)
+  loadBgmVariant('bgm',      ()=>bgmGenericEl, b=>bgmGenericEl=b);  // BGM umum (fallback dua scene)
+  ['hit','hit2','win','lose','ui'].forEach(n=>{
+    ['mp3','ogg','wav'].forEach(ext=>{
+      const a=new Audio('gameassets/'+n+'.'+ext); a.preload='auto';
+      a.addEventListener('canplaythrough',()=>{ if(!sfxFiles[n]) sfxFiles[n]=a; },{once:true});
+    });
+  });
+}
+
+function tone(freq,dur,type,dest,vol,when){
+  if(!AC||!dest) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,when);
+  g.gain.exponentialRampToValueAtTime(vol,when+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+  o.connect(g); g.connect(dest); o.start(when); o.stop(when+dur+0.03);
+}
+function noiseHit(when,strong){
+  if(!AC) return;
+  const len=0.2, buf=AC.createBuffer(1,Math.floor(AC.sampleRate*len),AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.2); }
+  const src=AC.createBufferSource(); src.buffer=buf;
+  const f=AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=strong?1100:1700;
+  const g=AC.createGain(); g.gain.value=strong?1:0.65;
+  src.connect(f); f.connect(g); g.connect(sfxGain); src.start(when);
+  tone(strong?80:120,0.18,'sine',sfxGain,strong?0.8:0.5,when);
+}
+function sfx(type){
+  if(sfxVol<=0) return;
+  const f=sfxFiles[type];
+  if(f){ const a=f.cloneNode(true); a.volume=sfxVol; a.play().catch(()=>{}); return; }
+  if(!AC) return;
+  const t=AC.currentTime;
+  if(type==='hit')       noiseHit(t,false);
+  else if(type==='hit2') noiseHit(t,true);
+  else if(type==='win')  [0,2,3,4].forEach((n,i)=>tone(mfreq(n,1),0.28,'triangle',sfxGain,0.5,t+i*0.10));
+  else if(type==='lose') [4,3,2,0].forEach((n,i)=>tone(mfreq(n,0),0.30,'sawtooth',sfxGain,0.45,t+i*0.13));
+  else if(type==='ui')   tone(740,0.05,'square',sfxGain,0.3,t);
+  else if(type==='jump'){ tone(330,0.06,'square',sfxGain,0.32,t); tone(660,0.08,'square',sfxGain,0.26,t+0.045); }
+}
+
+// BGM sintetik (look-ahead scheduler) — dipakai bila tak ada gameassets/bgm.*
+function startSynthMusic(){ if(!AC||synthMusicActive) return; synthMusicActive=true; nextNoteTime=AC.currentTime+0.06; mStep=0; scheduleMusic(); }
+function scheduleMusic(){
+  if(!AC||!synthMusicActive) return;
+  while(nextNoteTime < AC.currentTime+0.15){
+    const playing=(game.scene==='playing'||game.scene==='countdown');
+    const interval=playing?0.20:0.34;                 // gameplay menggebu, menu lebih lambat & lapang
+    if(musicVol>0 && !synthMuted){
+      const s=mStep%16;
+      if(playing){                                     // ── BGM GAMEPLAY: driving ──
+        if(s%4===0)      tone(mfreq(0,-1),0.24,'sawtooth',musicGain,0.5,nextNoteTime);
+        else if(s%2===0) tone(mfreq(2,-1),0.18,'triangle',musicGain,0.28,nextNoteTime);
+        tone(mfreq(s,(s%8===0)?2:1),0.12,'square',musicGain,0.16,nextNoteTime);
+        if(game.timeLeft<10 && s%2===1) tone(mfreq(s+1,2),0.08,'square',musicGain,0.13,nextNoteTime);
+      } else {                                         // ── BGM MENU/akhir: ambient & lembut ──
+        if(s%8===0) tone(mfreq(0,0),0.7,'triangle',musicGain,0.20,nextNoteTime);   // pad
+        if(s%4===0) tone(mfreq(2,0),0.6,'sine',    musicGain,0.14,nextNoteTime);
+        if(s%2===0) tone(mfreq((s/2)%5,1),0.34,'sine',musicGain,0.10,nextNoteTime);// arpeggio pelan
+      }
+    }
+    nextNoteTime+=interval; mStep++;
+  }
+  musicTimer=setTimeout(scheduleMusic,50);
+}
+
+// Autoplay: coba mulai saat halaman dibuka; browser memblokir audio hingga
+// interaksi pertama → pasang unlock satu kali pada pointerdown/keydown.
+function armAudioUnlock(){
+  const unlock=()=>{ initAudio(); window.removeEventListener('pointerdown',unlock); window.removeEventListener('keydown',unlock); };
+  window.addEventListener('pointerdown',unlock); window.addEventListener('keydown',unlock);
+}
+
+/* ==== 7c. SETTINGS PERSISTENCE (localStorage) ==== */
+const SKEY='rodagila.settings.v2';   // v2: default level = spec roda-18
+const CFG_IDS=['cfgScore','cfgDamage','cfgDuration','cfgRotSpeed','cfgDir','cfgObstacles',
+  'cfgObsWidth','cfgObsThick','cfgObsPos','cfgOuter','cfgInner','cfgCarSpeed','cfgCarSize','cfgFps','cfgTheme','cfgSeed','cfgMusic','cfgSfx',
+  'cfgInputDelay','cfgInputDelayMs','cfgJumpy'];
+function saveSettings(){
+  const o={}; CFG_IDS.forEach(id=>{ const e=el(id); if(e) o[id]=e.value; });
+  try{ localStorage.setItem(SKEY, JSON.stringify(o)); }catch(e){}
+}
+function loadSettings(){
+  let o=null; try{ o=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
+  if(o) CFG_IDS.forEach(id=>{ const e=el(id); if(e && o[id]!=null) e.value=o[id]; });
+  musicVol=(+el('cfgMusic').value||0)/100; sfxVol=(+el('cfgSfx').value||0)/100;
+  syncVolLabels();
+}
+function syncVolLabels(){
+  el('cfgMusicVal').textContent = Math.round((+el('cfgMusic').value||0))+'%';
+  el('cfgSfxVal').textContent   = Math.round((+el('cfgSfx').value||0))+'%';
+}
+function bindAutosave(){
+  CFG_IDS.forEach(id=>{ const e=el(id); if(!e) return;
+    e.addEventListener('change',saveSettings); e.addEventListener('input',saveSettings); });
+  // slider volume → terapkan seketika + perbarui label
+  el('cfgMusic').addEventListener('input',()=>{ musicVol=(+el('cfgMusic').value||0)/100; if(!AC) initAudio(); applyAudioGains(); syncVolLabels(); });
+  el('cfgSfx').addEventListener('input',  ()=>{ sfxVol=(+el('cfgSfx').value||0)/100; applyAudioGains(); syncVolLabels(); });
+  el('cfgTheme').addEventListener('change',()=>{ cfg.theme=el('cfgTheme').value; applyTheme(); });
+}
+
+/* ==== 8. LOOP ==== */
+let last=performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  if(cfg.fpsCap>0 && (now-last) < (1000/cfg.fpsCap - 1)) return;  // batasi ke refresh rate
+  let dt=(now-last)/1000; last=now;
+  if(dt>0.2) dt=0.2;                   // clamp anti spiral (mendukung FPS rendah s/d ~5)
+  if(game.scene==='playing'||game.scene==='countdown') update(dt);
+  render();
+}
+
+/* ==== 9. UI / FLOW ==== */
+function el(id){ return document.getElementById(id); }
+function syncHud(){
+  el('hudScore').textContent=Math.round(game.score);
+  el('hudTime').textContent=Math.ceil(game.timeLeft);
+}
+function updateLagChip(){
+  const c=el('hudLag');
+  if(cfg.inputDelayOn && cfg.jumpyOn){ c.textContent='⚡ JUMPY'; c.style.color='#ffcf3a'; c.classList.remove('hidden'); }
+  else if(cfg.inputDelayOn){ c.textContent='⏱ DELAY '+cfg.inputDelayMs+'ms'; c.style.color='#ffcf3a'; c.classList.remove('hidden'); }
+  else c.classList.add('hidden');
+}
+function endGame(win){
+  game.scene = win?'win':'lose';
+  sfx(win?'win':'lose');
+  updateBgm();                                 // kembali ke BGM menu/ambient
+  el('hud').classList.add('hidden'); el('touch').classList.add('hidden');
+  const t=el('endTitle');
+  t.textContent = win?'WIN':'LOSE'; t.className = win?'win':'lose';
+  el('endStats').innerHTML =
+    `Score akhir: <b>${Math.round(game.score)}</b><br>`+
+    `Total tabrakan: <b>${game.collisions}</b><br>`+
+    `Seed: <b>${cfg.seedStr||cfg.seed}</b>`;
+  el('end').classList.remove('hidden'); el('end').classList.add('show');
+}
+el('btnStart').addEventListener('click', startGame);
+el('btnRestart').addEventListener('click', startGame);
+// DEFAULT: kembalikan parameter acuan spec ke standar (setting lain dibiarkan)
+const STD_DEFAULTS={ cfgOuter:47, cfgInner:31, cfgCarSize:100, cfgObstacles:18, cfgObsWidth:18, cfgObsThick:8, cfgObsPos:'default' };
+function applyDefaults(){
+  for(const k in STD_DEFAULTS){ const e=el(k); if(e) e.value=STD_DEFAULTS[k]; }
+  saveSettings(); sfx('ui');
+}
+el('btnDefault').addEventListener('click', applyDefaults);
+function goMenu(){
+  if(game.scene==='menu') return;
+  game.scene='menu';
+  game.input.left=game.input.right=false;
+  el('end').classList.add('hidden');  el('end').classList.remove('show');
+  el('hud').classList.add('hidden');  el('touch').classList.add('hidden');
+  el('menu').classList.remove('hidden'); el('menu').classList.add('show');
+  updateBgm(); sfx('ui');
+}
+el('btnMenu').addEventListener('click', goMenu);
+
+/* boot */
+loadSettings();      // pakai setting terakhir yang tersimpan
+bindAutosave();      // simpan otomatis setiap perubahan setting
+cfg.theme = el('cfgTheme').value || 'classic'; applyTheme();
+resize();
+loadAssets();        // muat aset opsional dari gameassets/ (jika ada)
+initAudio();         // coba mulai BGM segera (di-unlock pada interaksi pertama bila diblokir)
+armAudioUnlock();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
