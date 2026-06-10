@@ -78,6 +78,7 @@
   .hintbtn{pointer-events:auto; cursor:pointer; flex:none; width:auto; font-size:12px; font-weight:700;
     letter-spacing:1px; color:var(--muted); background:#0b1226aa; transition:color .15s, border-color .15s;}
   .hintbtn.on{color:#12b886; border-color:#12b886; box-shadow:0 0 12px #12b88644}
+  body.touchdev .hintbtn{padding:12px 16px}   /* target sentuh lebih besar di mobile */
 
   /* ===== END OVERLAY ===== */
   #end .card{text-align:center}
@@ -185,6 +186,7 @@
   <div style="display:flex; gap:10px; align-self:center; align-items:center">
     <div id="hudLag" class="hud-box hidden" style="color:#ffcf3a; font-size:13px; font-weight:700"></div>
     <button id="btnHint" class="hud-box hintbtn" type="button">💡 HINT: OFF</button>
+    <button id="btnBackMenu" class="hud-box hintbtn" type="button">☰ MENU</button>
   </div>
   <div class="hud-box" style="text-align:right"><span class="hud-lbl">TIME</span><span id="hudTime">60</span></div>
 </div>
@@ -912,6 +914,7 @@ function syncHintBtn(){
   b.classList.toggle('on',cfg.hintOn);
 }
 el('btnHint').addEventListener('click', toggleHint);
+el('btnBackMenu').addEventListener('click', goMenu);   // mobile tak punya ESC
 function goMenu(){
   if(game.scene==='menu') return;
   game.scene='menu';
