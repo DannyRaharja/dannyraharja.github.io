@@ -99,6 +99,9 @@
     touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;}
   .tbtn small{font-size:10px; letter-spacing:1px; color:var(--muted); margin-top:3px; font-weight:700}
   .tbtn:active{background:#19e0ff33; transform:scale(.94)}
+  .tbtn-menu{width:clamp(56px,15vw,76px); height:clamp(56px,15vw,76px);
+    font-size:clamp(20px,5.5vw,28px); align-self:center; color:var(--muted)}
+  body.touchdev #btnBackMenu{display:none}   /* di mobile pakai tombol ☰ bawah-tengah */
 
   /* ===== RESPONSIVE (mobile) ===== */
   @media (max-width:560px){
@@ -111,6 +114,11 @@
     .row{margin-top:14px}
     .row button{padding:15px; font-size:15px}
     .hint{font-size:11px}
+    /* HUD kompak di layar sempit */
+    #hud{padding:calc(10px + env(safe-area-inset-top)) 12px 10px; gap:8px}
+    #hud .hud-box{padding:6px 10px}
+    #hudScore,#hudTime{font-size:18px}
+    #hud .hintbtn{padding:8px 10px; font-size:11px}
   }
   @media (max-width:380px){
     .grid{grid-template-columns:minmax(0,1fr)}   /* layar sangat sempit → satu kolom */
@@ -194,6 +202,7 @@
 <!-- ===== TOUCH ===== -->
 <div id="touch" class="hidden">
   <div class="tbtn" id="touchL">←<small>KIRI</small></div>
+  <div class="tbtn tbtn-menu" id="touchMenu">☰<small>MENU</small></div>
   <div class="tbtn" id="touchR">→<small>KANAN</small></div>
 </div>
 
@@ -797,6 +806,9 @@ function sfx(type){
 function startSynthMusic(){ if(!AC||synthMusicActive) return; synthMusicActive=true; nextNoteTime=AC.currentTime+0.06; mStep=0; scheduleMusic(); }
 function scheduleMusic(){
   if(!AC||!synthMusicActive) return;
+  // setelah tab lama di-background, lompat ke sekarang (jangan mem-burst nada yang tertunda)
+  if(nextNoteTime < AC.currentTime-0.2) nextNoteTime = AC.currentTime+0.05;
+  try{
   while(nextNoteTime < AC.currentTime+0.15){
     const playing=(game.scene==='playing'||game.scene==='countdown');
     const interval=playing?0.20:0.34;                 // gameplay menggebu, menu lebih lambat & lapang
@@ -815,14 +827,29 @@ function scheduleMusic(){
     }
     nextNoteTime+=interval; mStep++;
   }
+  }catch(e){}                                  // scheduler tidak boleh mati permanen
   musicTimer=setTimeout(scheduleMusic,50);
 }
 
-// Autoplay: coba mulai saat halaman dibuka; browser memblokir audio hingga
-// interaksi pertama → pasang unlock satu kali pada pointerdown/keydown.
+// Audio harus SELALU bisa bangun lagi: browser dapat men-suspend AudioContext kapan saja
+// (autoplay policy, tab di-background, layar terkunci, interupsi telepon/Siri di iOS —
+// state jadi "suspended"/"interrupted"). Maka listener-nya PERSISTEN, bukan sekali pakai.
+function ensureAudioAlive(){
+  if(!AC){ initAudio(); return; }
+  if(AC.state!=='running'){
+    try{ AC.resume().then(()=>{ startSynthMusic(); updateBgm(); }).catch(()=>{}); }catch(e){}
+    return;
+  }
+  if(!synthMusicActive) startSynthMusic();           // hidupkan lagi bila scheduler pernah berhenti
+  const want = musicVol>0 ? currentBgmEl() : null;   // retry BGM file yang gagal play()
+  if(want && want.paused) updateBgm();
+}
 function armAudioUnlock(){
-  const unlock=()=>{ initAudio(); window.removeEventListener('pointerdown',unlock); window.removeEventListener('touchstart',unlock); window.removeEventListener('keydown',unlock); };
-  window.addEventListener('pointerdown',unlock); window.addEventListener('touchstart',unlock,{passive:true}); window.addEventListener('keydown',unlock);
+  window.addEventListener('pointerdown', ensureAudioAlive);
+  window.addEventListener('touchstart', ensureAudioAlive, {passive:true});
+  window.addEventListener('keydown', ensureAudioAlive);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) ensureAudioAlive(); });
+  window.addEventListener('focus', ensureAudioAlive);
 }
 
 /* ==== 7c. SETTINGS PERSISTENCE (localStorage) ==== */
@@ -914,7 +941,9 @@ function syncHintBtn(){
   b.classList.toggle('on',cfg.hintOn);
 }
 el('btnHint').addEventListener('click', toggleHint);
-el('btnBackMenu').addEventListener('click', goMenu);   // mobile tak punya ESC
+el('btnBackMenu').addEventListener('click', goMenu);   // desktop (alternatif ESC)
+el('touchMenu').addEventListener('click', goMenu);     // mobile: ☰ di bawah-tengah
+el('touchMenu').addEventListener('contextmenu', e=>e.preventDefault());
 function goMenu(){
   if(game.scene==='menu') return;
   game.scene='menu';
